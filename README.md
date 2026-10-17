@@ -224,3 +224,4 @@ Add `base: './'` to `vite.config.ts` if deploying to a subdirectory, run `npm ru
 
 ## 📜 License
 AlgoMotion is open-source educational software distributed under the MIT License.
+"# Algomotion" 

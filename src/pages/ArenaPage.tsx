@@ -420,7 +420,11 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer, initialP
           {/* Action Bar */}
           <div className="flex items-center gap-2">
             {/* Backend Health indicator */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium border ${
+            <div 
+              title={isBackendConnected 
+                ? "Execution Sandbox connected. Full Python/Java compilation & evaluation active." 
+                : "The 16 algorithm visualizers run 100% in your browser. To execute live Python/Java code, start backend on port 8000 or deploy to Render."}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium border transition-colors ${
               isBackendConnected
                 ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300'
                 : 'bg-amber-950/40 border-amber-800/60 text-amber-300'
@@ -428,12 +432,12 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer, initialP
               {isBackendConnected ? (
                 <>
                   <Server className="w-3 h-3 text-emerald-400" />
-                  <span>Sandbox Active (port 8000)</span>
+                  <span>Sandbox Active</span>
                 </>
               ) : (
                 <>
                   <ServerOff className="w-3 h-3 text-amber-400" />
-                  <span>Backend Offline</span>
+                  <span>Cloud Sandbox Offline</span>
                 </>
               )}
             </div>

@@ -44,23 +44,40 @@ export async function executeRunCode(
   code: string,
   customInput?: string
 ): Promise<ExecutionResponse> {
-  const res = await fetch(`${API_BASE_URL}/arena/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      problem_id: problemId,
-      language,
-      code,
-      custom_input: customInput || null,
-    }),
-  });
+  try {
+    const res = await fetch(`${API_BASE_URL}/arena/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        problem_id: problemId,
+        language,
+        code,
+        custom_input: customInput || null,
+      }),
+    });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(errText || 'Failed to execute code');
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || 'Failed to execute code');
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('NetworkError')) {
+      return {
+        status: 'Internal Error',
+        total_test_cases: 0,
+        passed_test_cases: 0,
+        execution_time_ms: 0,
+        memory_mb: 0,
+        compile_error: null,
+        runtime_error: 'Execution Sandbox Offline.\n\nThe 16 algorithm visualizers work 100% in your browser without any server.\nTo run sandboxed Python/Java code:\n• Local: Run `uvicorn app.main:app --port 8000` in terminal\n• Cloud: Deploy backend to Render (free) and set VITE_API_BASE_URL on Vercel.',
+        test_case_results: [],
+        message: 'Sandbox Offline',
+      };
+    }
+    throw err;
   }
-
-  return await res.json();
 }
 
 export async function executeSubmitSolution(
@@ -70,26 +87,43 @@ export async function executeSubmitSolution(
   token?: string | null
 ): Promise<ExecutionResponse> {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (token) {
+  if (token && !token.startsWith('offline-token-')) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}/arena/submit`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      problem_id: problemId,
-      language,
-      code,
-    }),
-  });
+  try {
+    const res = await fetch(`${API_BASE_URL}/arena/submit`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        problem_id: problemId,
+        language,
+        code,
+      }),
+    });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(errText || 'Failed to submit solution');
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || 'Failed to submit solution');
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('NetworkError')) {
+      return {
+        status: 'Internal Error',
+        total_test_cases: 0,
+        passed_test_cases: 0,
+        execution_time_ms: 0,
+        memory_mb: 0,
+        compile_error: null,
+        runtime_error: 'Execution Sandbox Offline.\n\nConnect the Python backend on port 8000 or deploy to Render to evaluate solutions.',
+        test_case_results: [],
+        message: 'Sandbox Offline',
+      };
+    }
+    throw err;
   }
-
-  return await res.json();
 }
 
 export async function fetchSubmissions(problemId?: string): Promise<SubmissionRecord[]> {

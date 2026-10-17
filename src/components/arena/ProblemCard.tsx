@@ -34,10 +34,22 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({
       <div>
         {/* Top Badges & Actions */}
         <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border ${diffBadgeColor}`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-mono text-slate-500 font-bold">
+              #{problem.id}
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${diffBadgeColor}`}>
               {problem.difficulty}
             </span>
+            {problem.is_draft ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                Draft
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                Verified
+              </span>
+            )}
             <span className="text-xs text-slate-400 font-medium font-sans">
               {problem.topic}
             </span>

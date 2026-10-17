@@ -11,7 +11,8 @@ import {
   CheckCircle2, 
   XCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ProblemDescriptionProps {
@@ -44,10 +45,22 @@ export const ProblemDescription: React.FC<ProblemDescriptionProps> = ({
       {/* Header with Title & Tabs */}
       <div className="p-4 bg-slate-950 border-b border-slate-800 flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-mono text-slate-500 font-bold">
+              #{problem.id}
+            </span>
             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border ${diffBadgeColor}`}>
               {problem.difficulty}
             </span>
+            {problem.is_draft ? (
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                Draft • Tests Pending
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                Verified
+              </span>
+            )}
             <h2 className="text-lg font-bold text-white tracking-tight">{problem.title}</h2>
           </div>
 
@@ -120,15 +133,29 @@ export const ProblemDescription: React.FC<ProblemDescriptionProps> = ({
       <div className="flex-1 p-5 overflow-y-auto text-xs text-slate-300 leading-relaxed font-sans">
         {activeTab === 'description' && (
           <div className="flex flex-col gap-5">
+            {/* Draft Notice Banner */}
+            {problem.is_draft && (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                <div>
+                  <p className="font-semibold text-amber-200">Question Bank Draft — Verification Pending</p>
+                  <p className="text-[11px] text-amber-300/80 mt-0.5 leading-normal">
+                    This challenge is part of the AlgoMotion 300-Question Bank. Official test cases are currently pending verification. You can draft, practice, and autosave your solution in Python or Java, and verify logic using <strong>Run Code</strong> with custom inputs. Automated Accepted grading is disabled until test cases are verified.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Problem Statement */}
             <div className="whitespace-pre-line text-sm text-slate-200 leading-relaxed font-sans">
               {problem.description}
             </div>
 
             {/* Examples */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Examples</h4>
-              {problem.examples.map((ex, idx) => (
+            {problem.examples && problem.examples.length > 0 ? (
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Examples</h4>
+                {problem.examples.map((ex, idx) => (
                 <div key={idx} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2 font-mono text-xs">
                   <div className="font-bold text-slate-300">Example {idx + 1}:</div>
                   <div>
@@ -151,6 +178,12 @@ export const ProblemDescription: React.FC<ProblemDescriptionProps> = ({
                 </div>
               ))}
             </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-300 block mb-1">Sample Inputs & Test Boundaries</span>
+                Official example test cases are pending verification for this question bank draft. Use the <strong>Custom Input</strong> tab in the testcase panel to supply custom inputs and test execution with <strong>Run Code</strong>.
+              </div>
+            )}
 
             {/* Input & Output Format */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

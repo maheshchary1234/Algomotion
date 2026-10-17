@@ -85,6 +85,9 @@ export const OutputConsole: React.FC<OutputConsoleProps> = ({
   if (isAccepted) {
     statusBg = 'bg-emerald-950/80 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40';
     StatusIcon = CheckCircle2;
+  } else if (result.status === 'Draft Question') {
+    statusBg = 'bg-amber-950/80 border-amber-500/80 text-amber-300 ring-1 ring-amber-500/30';
+    StatusIcon = AlertTriangle;
   } else if (isCompileErr || isRuntimeErr || isWrongAnswer) {
     statusBg = 'bg-rose-950/80 border-rose-500 text-rose-300 ring-1 ring-rose-500/40';
     StatusIcon = XCircle;

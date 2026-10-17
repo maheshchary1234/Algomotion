@@ -1,6 +1,7 @@
 import { CodingProblem } from '../types/arena';
+import { QUESTION_BANK_300 } from './questionBank';
 
-export const ARENA_PROBLEMS: CodingProblem[] = [
+export const VERIFIED_PROBLEMS: CodingProblem[] = [
   {
     id: 'rotate-array',
     slug: 'rotate-array',
@@ -589,6 +590,12 @@ public class Solution {
 
 Traversing the list once and redirecting \`next\` pointers achieves $O(n)$ time and $O(1)$ auxiliary space.`,
   },
+];
+
+// Complete AlgoMotion catalog: 6 verified + 300 imported question bank challenges
+export const ARENA_PROBLEMS: CodingProblem[] = [
+  ...VERIFIED_PROBLEMS,
+  ...QUESTION_BANK_300
 ];
 
 export const getProblemById = (id: string): CodingProblem | undefined => {

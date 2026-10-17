@@ -2,10 +2,11 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as arena_router
+from app.api.auth_routes import router as auth_router, user_router
 
 app = FastAPI(
-    title="AlgoMotion Execution Engine & Coding Arena API",
-    description="Real sandboxed code execution for Python 3 and Java with competitive programming problem evaluation.",
+    title="AlgoMotion Execution Engine, Auth & Coding Arena API",
+    description="Real sandboxed code execution, student authentication, and progress tracking.",
     version="2.0.0"
 )
 
@@ -19,6 +20,8 @@ app.add_middleware(
 )
 
 app.include_router(arena_router)
+app.include_router(auth_router)
+app.include_router(user_router)
 
 @app.get("/api/health")
 def health_check():

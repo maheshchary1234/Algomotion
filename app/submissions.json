@@ -1,5 +1,27 @@
 [
   {
+    "id": "sub-3087d68c",
+    "problem_id": "rotate-array",
+    "problem_title": "Rotate Array by K Positions",
+    "language": "python",
+    "status": "Accepted",
+    "passed_test_cases": 5,
+    "total_test_cases": 5,
+    "execution_time_ms": 44.51,
+    "timestamp": "2026-10-17 11:52:16 UTC"
+  },
+  {
+    "id": "sub-145b584b",
+    "problem_id": "two-sum-sorted",
+    "problem_title": "Two Sum II - Input Array Is Sorted",
+    "language": "python",
+    "status": "Accepted",
+    "passed_test_cases": 4,
+    "total_test_cases": 4,
+    "execution_time_ms": 116.12,
+    "timestamp": "2026-10-17 10:55:54 UTC"
+  },
+  {
     "id": "sub-148e7e2e",
     "problem_id": "rotate-array",
     "problem_title": "Rotate Array by K Positions",

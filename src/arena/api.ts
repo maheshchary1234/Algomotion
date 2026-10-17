@@ -1,6 +1,6 @@
 import { CodingProblem, ExecutionResponse, SubmissionRecord, LeaderboardUser } from '../types/arena';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
 export interface BackendHealth {
   isAvailable: boolean;
@@ -66,11 +66,17 @@ export async function executeRunCode(
 export async function executeSubmitSolution(
   problemId: string,
   language: string,
-  code: string
+  code: string,
+  token?: string | null
 ): Promise<ExecutionResponse> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE_URL}/arena/submit`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       problem_id: problemId,
       language,

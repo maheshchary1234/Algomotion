@@ -8,7 +8,21 @@ export type ProblemTopic =
   | 'Recursion' 
   | 'Stacks' 
   | 'Queues' 
-  | 'Linked Lists';
+  | 'Linked Lists'
+  | 'Math and Basics'
+  | 'Searching and Sorting'
+  | 'Data Structures and Logic'
+  | 'Arrays and Hashing'
+  | 'Strings and Sliding Window'
+  | 'Linked Lists and Stacks'
+  | 'Trees and Binary Search'
+  | 'Recursion, Backtracking and Graphs'
+  | 'Advanced Arrays and Intervals'
+  | 'Advanced Strings'
+  | 'Dynamic Programming'
+  | 'Graphs and Shortest Paths'
+  | 'Advanced Trees, Heaps and Data Structures'
+  | string;
 
 export type ArenaLanguage = 'python' | 'java';
 
@@ -33,18 +47,21 @@ export interface CodingProblem {
   difficulty: ProblemDifficulty;
   topic: ProblemTopic;
   tags: string[];
-  visualizer_id?: string; // Links to AlgoMotion visualizer (e.g. 'array-rotation', 'binary-search', 'stack-ds')
+  visualizer_id?: string | null; // Links to AlgoMotion visualizer (e.g. 'array-rotation', 'binary-search', 'stack-ds')
   description: string;
   input_format: string;
   output_format: string;
   constraints: string;
   examples: ProblemExample[];
   sample_test_cases: ProblemTestCase[];
+  hidden_test_cases?: ProblemTestCase[];
   hidden_test_cases_count?: number;
   starter_code_python: string;
   starter_code_java: string;
   hints: string[];
   editorial: string;
+  is_draft?: boolean;
+  test_cases_status?: string;
 }
 
 export interface TestCaseResult {
@@ -60,7 +77,7 @@ export interface TestCaseResult {
 }
 
 export interface ExecutionResponse {
-  status: 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Compilation Error' | 'Runtime Error' | 'Internal Error' | 'Finished';
+  status: 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Compilation Error' | 'Runtime Error' | 'Internal Error' | 'Finished' | 'Draft Question';
   total_test_cases: number;
   passed_test_cases: number;
   execution_time_ms: number;

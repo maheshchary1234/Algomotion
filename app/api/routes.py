@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from app.schemas.arena import (
     RunCodeRequest,
     SubmitCodeRequest,
@@ -671,6 +671,23 @@ LEADERBOARD_DATA: List[LeaderboardUser] = [
     LeaderboardUser(rank=7, username="big_o_pro", solved_count=6, points=850, streak_days=2, badge="Pupil"),
 ]
 
+# Load and validate imported 300-question bank
+BANK_JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "question_bank_300.json")
+if os.path.exists(BANK_JSON_PATH):
+    try:
+        with open(BANK_JSON_PATH, "r", encoding="utf-8") as f:
+            bank_questions = json.load(f)
+            existing_ids = set(p["id"] for p in PROBLEMS_DATA)
+            existing_slugs = set(p["slug"] for p in PROBLEMS_DATA)
+            for bq in bank_questions:
+                # Validate duplicate IDs and slugs before importing, do not overwrite existing questions
+                if bq["id"] not in existing_ids and bq["slug"] not in existing_slugs:
+                    PROBLEMS_DATA.append(bq)
+                    existing_ids.add(bq["id"])
+                    existing_slugs.add(bq["slug"])
+    except Exception as e:
+        print("Failed to load question bank 300:", e)
+
 @router.get("/problems")
 def get_problems():
     """List all problems with summary metadata."""
@@ -685,7 +702,9 @@ def get_problems():
             "tags": p["tags"],
             "visualizer_id": p.get("visualizer_id"),
             "short_description": p["description"].split("\n")[0],
-            "total_test_cases": len(p["sample_test_cases"]) + len(p["hidden_test_cases"])
+            "total_test_cases": len(p.get("sample_test_cases", [])) + len(p.get("hidden_test_cases", [])),
+            "is_draft": p.get("is_draft", False),
+            "test_cases_status": p.get("test_cases_status", "Verified")
         })
     return {"problems": summary}
 
@@ -761,14 +780,26 @@ def run_code(req: RunCodeRequest):
         )
 
     # Evaluate sample test cases
+    if len(prob.get("sample_test_cases", [])) == 0:
+        return ExecutionResponse(
+            status="Finished",
+            total_test_cases=0,
+            passed_test_cases=0,
+            execution_time_ms=0,
+            memory_mb=0,
+            test_case_results=[],
+            message="Draft question: Sample test cases are pending verification. Enter custom input to run and test your code."
+        )
+
     sample_cases = [TestCaseModel(**tc) for tc in prob["sample_test_cases"]]
     return evaluate_solution(req.language, req.code, sample_cases)
 
 @router.post("/submit", response_model=ExecutionResponse)
-def submit_solution(req: SubmitCodeRequest):
+def submit_solution(req: SubmitCodeRequest, authorization: Optional[str] = Header(None)):
     """
     Evaluates code against all sample AND hidden test cases.
     Never marks Accepted unless ALL cases pass.
+    Saves progress and submissions to user account if authenticated.
     """
     prob = None
     for p in PROBLEMS_DATA:
@@ -780,12 +811,24 @@ def submit_solution(req: SubmitCodeRequest):
         raise HTTPException(status_code=404, detail="Problem not found")
 
     # Combine sample and hidden test cases
-    all_cases = [TestCaseModel(**tc) for tc in prob["sample_test_cases"]] + \
-                [TestCaseModel(**tc) for tc in prob["hidden_test_cases"]]
+    all_cases = [TestCaseModel(**tc) for tc in prob.get("sample_test_cases", [])] + \
+                [TestCaseModel(**tc) for tc in prob.get("hidden_test_cases", [])]
+
+    # For draft questions with no verified test cases, do not claim Accepted
+    if prob.get("is_draft") or len(all_cases) == 0:
+        return ExecutionResponse(
+            status="Draft Question",
+            total_test_cases=0,
+            passed_test_cases=0,
+            execution_time_ms=0,
+            memory_mb=0,
+            test_case_results=[],
+            message="Draft Question: Official test cases are currently pending verification. Solutions cannot be claimed as Accepted without actual test execution. Use Run Code with custom inputs to practice and test your logic."
+        )
 
     result = evaluate_solution(req.language, req.code, all_cases)
 
-    # Record submission
+    # Record global submission
     record = {
         "id": f"sub-{uuid.uuid4().hex[:8]}",
         "problem_id": prob["id"],
@@ -798,6 +841,23 @@ def submit_solution(req: SubmitCodeRequest):
         "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
     }
     save_submission(record)
+
+    # If user is authenticated, save persistent progress to database
+    from app.services.auth_service import get_current_user_optional, mark_problem_progress, record_user_submission
+    user = get_current_user_optional(authorization)
+    if user:
+        is_accepted = (result.status == "Accepted")
+        mark_problem_progress(user["id"], prob["id"], is_accepted)
+        record_user_submission(
+            user["id"],
+            prob["id"],
+            prob["title"],
+            req.language,
+            result.status,
+            result.passed_test_cases,
+            result.total_test_cases,
+            result.execution_time_ms
+        )
 
     return result
 

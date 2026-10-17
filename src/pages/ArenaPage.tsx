@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import Editor from '@monaco-editor/react';
 import { 
@@ -37,24 +37,42 @@ import {
   Filter,
   Sparkles,
   Terminal,
-  ExternalLink
+  ExternalLink,
+  Cloud,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { 
+  saveCodeDraft, 
+  fetchCodeDraft, 
+  toggleBookmark as toggleUserBookmark, 
+  fetchUserBookmarks, 
+  fetchUserProgress 
+} from '../auth/api';
 
 interface ArenaPageProps {
   onOpenVisualizer: (visualizerId: string) => void;
+  initialProblemId?: string | null;
 }
 
-export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
+export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer, initialProblemId }) => {
+  const { token, isAuthenticated } = useAuth();
+
   // Navigation / View state
-  const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null);
+  const [selectedProblemId, setSelectedProblemId] = useState<string | null>(initialProblemId || null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'solved' | 'unsolved' | 'bookmarked'>('all');
+  const [verificationFilter, setVerificationFilter] = useState<'all' | 'verified' | 'draft'>('all');
+  const [displayLimit, setDisplayLimit] = useState<number>(36);
 
   // Backend state
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(true);
   const [isCheckingBackend, setIsCheckingBackend] = useState<boolean>(false);
+
+  // Autosave status state
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // User persistence state
   const [solvedProblemIds, setSolvedProblemIds] = useState<Set<string>>(() => {
@@ -104,22 +122,66 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
     });
   }, []);
 
-  // Sync active problem & load starter code or saved draft
+  // Sync initial problem id prop if changed
+  useEffect(() => {
+    if (initialProblemId) {
+      setSelectedProblemId(initialProblemId);
+    }
+  }, [initialProblemId]);
+
+  // Sync authenticated user's progress and bookmarks from backend
+  useEffect(() => {
+    if (token) {
+      fetchUserProgress(token).then(data => {
+        if (data.solved && data.solved.length > 0) {
+          setSolvedProblemIds(new Set(data.solved));
+        }
+      });
+      fetchUserBookmarks(token).then(bms => {
+        if (bms && bms.length > 0) {
+          setBookmarkedIds(new Set(bms));
+        }
+      });
+    }
+  }, [token]);
+
+  // Sync active problem & load starter code or saved cloud draft
   useEffect(() => {
     if (!selectedProblemId) return;
     const prob = getProblemById(selectedProblemId);
     if (!prob) return;
 
-    // Load saved draft or starter code
-    const draftKey = `algomotion-draft-${prob.id}-${language}`;
-    const savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) {
-      setCode(savedDraft);
-    } else {
-      setCode(language === 'python' ? prob.starter_code_python : prob.starter_code_java);
-    }
+    const loadInitialCode = async () => {
+      let codeToUse = '';
+      if (token) {
+        try {
+          const cloudDraft = await fetchCodeDraft(token, prob.id, language);
+          if (cloudDraft && cloudDraft.code) {
+            codeToUse = cloudDraft.code;
+          }
+        } catch {
+          // fallback
+        }
+      }
 
-    // Set sample input for custom test case
+      if (!codeToUse) {
+        const draftKey = `algomotion-draft-${prob.id}-${language}`;
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+          codeToUse = savedDraft;
+        }
+      }
+
+      if (!codeToUse) {
+        codeToUse = language === 'python' ? prob.starter_code_python : prob.starter_code_java;
+      }
+
+      setCode(codeToUse);
+      setSaveStatus('idle');
+    };
+
+    loadInitialCode();
+
     if (prob.sample_test_cases.length > 0) {
       setCustomInput(prob.sample_test_cases[0].input);
     }
@@ -127,9 +189,29 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
     // Load submissions for this problem
     fetchSubmissions(prob.id).then(subs => setSubmissions(subs));
     setExecutionResult(null);
-  }, [selectedProblemId, language]);
+  }, [selectedProblemId, language, token]);
 
-  // Persist code drafts on change
+  // Debounced autosave effect
+  useEffect(() => {
+    if (!selectedProblemId || !code) return;
+    setSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      if (token) {
+        try {
+          await saveCodeDraft(token, selectedProblemId, language, code);
+          setSaveStatus('saved');
+        } catch {
+          setSaveStatus('idle');
+        }
+      } else {
+        setSaveStatus('saved');
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [code, selectedProblemId, language, token]);
+
+  // Persist code drafts locally on change
   const handleCodeChange = (newCode: string | undefined) => {
     const val = newCode || '';
     setCode(val);
@@ -145,9 +227,12 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
     const starter = language === 'python' ? prob.starter_code_python : prob.starter_code_java;
     setCode(starter);
     localStorage.removeItem(`algomotion-draft-${selectedProblemId}-${language}`);
+    if (token) {
+      saveCodeDraft(token, selectedProblemId, language, starter);
+    }
   };
 
-  const toggleBookmark = (id: string, e: React.MouseEvent) => {
+  const toggleBookmark = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setBookmarkedIds(prev => {
       const next = new Set(prev);
@@ -156,6 +241,14 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
       localStorage.setItem('algomotion-arena-bookmarks', JSON.stringify(Array.from(next)));
       return next;
     });
+
+    if (token) {
+      try {
+        await toggleUserBookmark(token, id);
+      } catch (err) {
+        console.warn('Failed to sync bookmark to server:', err);
+      }
+    }
   };
 
   const handleRunCode = async () => {
@@ -189,7 +282,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
     if (!selectedProblemId) return;
     setIsRunning(true);
     try {
-      const resp = await executeSubmitSolution(selectedProblemId, language, code);
+      const resp = await executeSubmitSolution(selectedProblemId, language, code, token);
       setExecutionResult(resp);
 
       // Refresh submissions
@@ -228,26 +321,71 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
     }
   };
 
+  // Extract all unique topics across all problems
+  const allTopics = useMemo(() => {
+    const set = new Set<string>();
+    ARENA_PROBLEMS.forEach(p => {
+      if (p.topic) set.add(p.topic);
+    });
+    return Array.from(set).sort();
+  }, []);
+
+  // Compute live counts
+  const difficultyCounts = useMemo(() => {
+    return {
+      all: ARENA_PROBLEMS.length,
+      Easy: ARENA_PROBLEMS.filter(p => p.difficulty === 'Easy').length,
+      Medium: ARENA_PROBLEMS.filter(p => p.difficulty === 'Medium').length,
+      Hard: ARENA_PROBLEMS.filter(p => p.difficulty === 'Hard').length,
+    };
+  }, []);
+
+  const verificationCounts = useMemo(() => {
+    return {
+      all: ARENA_PROBLEMS.length,
+      verified: ARENA_PROBLEMS.filter(p => !p.is_draft).length,
+      draft: ARENA_PROBLEMS.filter(p => p.is_draft).length,
+    };
+  }, []);
+
   // Filter problems for directory view
-  const filteredProblems = ARENA_PROBLEMS.filter(p => {
-    const matchesSearch =
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredProblems = useMemo(() => {
+    return ARENA_PROBLEMS.filter(p => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        p.id.toLowerCase() === q ||
+        p.title.toLowerCase().includes(q) ||
+        p.topic.toLowerCase().includes(q) ||
+        p.tags.some(t => t.toLowerCase().includes(q));
 
-    const matchesDifficulty =
-      selectedDifficulty === 'all' || p.difficulty === selectedDifficulty;
+      const matchesDifficulty =
+        selectedDifficulty === 'all' || p.difficulty === selectedDifficulty;
 
-    const matchesTopic =
-      selectedTopic === 'all' || p.topic === selectedTopic;
+      const matchesTopic =
+        selectedTopic === 'all' || p.topic === selectedTopic;
 
-    let matchesStatus = true;
-    if (statusFilter === 'solved') matchesStatus = solvedProblemIds.has(p.id);
-    else if (statusFilter === 'unsolved') matchesStatus = !solvedProblemIds.has(p.id);
-    else if (statusFilter === 'bookmarked') matchesStatus = bookmarkedIds.has(p.id);
+      let matchesVerification = true;
+      if (verificationFilter === 'verified') matchesVerification = !p.is_draft;
+      else if (verificationFilter === 'draft') matchesVerification = !!p.is_draft;
 
-    return matchesSearch && matchesDifficulty && matchesTopic && matchesStatus;
-  });
+      let matchesStatus = true;
+      if (statusFilter === 'solved') matchesStatus = solvedProblemIds.has(p.id);
+      else if (statusFilter === 'unsolved') matchesStatus = !solvedProblemIds.has(p.id);
+      else if (statusFilter === 'bookmarked') matchesStatus = bookmarkedIds.has(p.id);
+
+      return matchesSearch && matchesDifficulty && matchesTopic && matchesVerification && matchesStatus;
+    });
+  }, [searchQuery, selectedDifficulty, selectedTopic, verificationFilter, statusFilter, solvedProblemIds, bookmarkedIds]);
+
+  // Reset pagination limit when search/filters change
+  useEffect(() => {
+    setDisplayLimit(36);
+  }, [searchQuery, selectedDifficulty, selectedTopic, verificationFilter, statusFilter]);
+
+  const displayedProblems = useMemo(() => {
+    return filteredProblems.slice(0, displayLimit);
+  }, [filteredProblems, displayLimit]);
 
   const activeProblem = selectedProblemId ? getProblemById(selectedProblemId) : null;
 
@@ -297,6 +435,33 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
                   <ServerOff className="w-3 h-3 text-amber-400" />
                   <span>Backend Offline</span>
                 </>
+              )}
+            </div>
+
+            {/* Autosave Status Badge */}
+            <div className="flex items-center">
+              {isAuthenticated ? (
+                saveStatus === 'saving' ? (
+                  <div id="autosave-saving-badge" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono text-amber-300 bg-amber-950/40 border border-amber-800/60">
+                    <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                    <span>Saving draft...</span>
+                  </div>
+                ) : saveStatus === 'saved' ? (
+                  <div id="autosave-saved-badge" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/60">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>Draft saved ✓</span>
+                  </div>
+                ) : (
+                  <div id="autosave-idle-badge" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono text-slate-300 bg-slate-900 border border-slate-800">
+                    <Cloud className="w-3 h-3 text-cyan-400" />
+                    <span>Cloud Sync Active</span>
+                  </div>
+                )
+              ) : (
+                <div id="autosave-guest-badge" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono text-slate-400 bg-slate-900 border border-slate-800">
+                  <Cloud className="w-3 h-3 text-slate-500" />
+                  <span>Local Draft (Sign in to sync)</span>
+                </div>
               )}
             </div>
 
@@ -493,22 +658,82 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xl">
-        {/* Search Input */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search problems by name or tag..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500 transition-colors"
-          />
+      <div className="p-4 rounded-2xl bg-[#0B101E] border border-slate-800 flex flex-col gap-4 shadow-xl">
+        <div className="flex flex-col lg:flex-row gap-3 items-center justify-between">
+          {/* Search Input */}
+          <div className="relative w-full lg:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by ID, name, topic, or tag..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
+
+          {/* Topic Selector Dropdown */}
+          <div className="w-full lg:w-72">
+            <select
+              value={selectedTopic}
+              onChange={(e) => setSelectedTopic(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+            >
+              <option value="all">All Topics ({allTopics.length} topics)</option>
+              {allTopics.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Verification Status Filter */}
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 w-full lg:w-auto">
+            <button
+              onClick={() => setVerificationFilter('all')}
+              className={`flex-1 lg:flex-none px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                verificationFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All ({verificationCounts.all})
+            </button>
+            <button
+              onClick={() => setVerificationFilter('verified')}
+              className={`flex-1 lg:flex-none px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                verificationFilter === 'verified' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Verified ({verificationCounts.verified})
+            </button>
+            <button
+              onClick={() => setVerificationFilter('draft')}
+              className={`flex-1 lg:flex-none px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                verificationFilter === 'draft' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Draft Bank ({verificationCounts.draft})
+            </button>
+          </div>
         </div>
 
-        {/* Filter Badges */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          {/* Status Filter */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/80">
+          {/* Difficulty Filter Badges */}
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            {(['all', 'Easy', 'Medium', 'Hard'] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setSelectedDifficulty(d)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  selectedDifficulty === d ? 'bg-slate-800 text-cyan-300 border border-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {d === 'all' ? `All (${difficultyCounts.all})` : `${d} (${difficultyCounts[d]})`}
+              </button>
+            ))}
+          </div>
+
+          {/* User Progress Filter Badges */}
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
             {(['all', 'unsolved', 'solved', 'bookmarked'] as const).map((st) => (
               <button
@@ -523,19 +748,9 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
             ))}
           </div>
 
-          {/* Difficulty Filter */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-            {['all', 'Easy', 'Medium', 'Hard'].map((d) => (
-              <button
-                key={d}
-                onClick={() => setSelectedDifficulty(d)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  selectedDifficulty === d ? 'bg-slate-800 text-cyan-300 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {d === 'all' ? 'All' : d}
-              </button>
-            ))}
+          {/* Results Summary Counter */}
+          <div className="text-xs text-slate-400 font-mono">
+            Showing <span className="text-white font-bold">{displayedProblems.length}</span> of <span className="text-cyan-400 font-bold">{filteredProblems.length}</span> challenges
           </div>
         </div>
       </div>
@@ -547,7 +762,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
             No coding challenges found matching your filters.
           </div>
         ) : (
-          filteredProblems.map((prob) => (
+          displayedProblems.map((prob) => (
             <ProblemCard
               key={prob.id}
               problem={prob}
@@ -560,6 +775,24 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onOpenVisualizer }) => {
           ))
         )}
       </div>
+
+      {/* Pagination / Load More Controls */}
+      {displayLimit < filteredProblems.length && (
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+          <button
+            onClick={() => setDisplayLimit((prev) => prev + 36)}
+            className="px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 transition-all shadow-md"
+          >
+            Load Next 36 Challenges ({filteredProblems.length - displayLimit} remaining)
+          </button>
+          <button
+            onClick={() => setDisplayLimit(filteredProblems.length)}
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-cyan-400 bg-cyan-950/40 border border-cyan-800 hover:bg-cyan-900/50 transition-colors"
+          >
+            Show All {filteredProblems.length} Challenges
+          </button>
+        </div>
+      )}
 
       {/* Leaderboard Modal */}
       <LeaderboardModal

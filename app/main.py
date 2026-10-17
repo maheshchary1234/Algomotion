@@ -24,11 +24,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount routers with /api prefix (standard convention)
+app.include_router(arena_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(user_router, prefix="/api")
+
+# Also mount routers at root without /api prefix as aliases
 app.include_router(arena_router)
 app.include_router(auth_router)
 app.include_router(user_router)
 
 @app.get("/api/health")
+@app.get("/health")
 def health_check():
     return {
         "status": "healthy",

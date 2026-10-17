@@ -28,8 +28,8 @@ from app.services.auth_service import (
 )
 from app.api.routes import PROBLEMS_DATA
 
-router = APIRouter(prefix="/api/auth", tags=["Authentication"])
-user_router = APIRouter(prefix="/api/user", tags=["User Progress"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
+user_router = APIRouter(prefix="/user", tags=["User Progress"])
 
 # --- Authentication Endpoints ---
 

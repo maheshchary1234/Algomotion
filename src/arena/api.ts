@@ -2,7 +2,17 @@ import { CodingProblem, ExecutionResponse, SubmissionRecord, LeaderboardUser } f
 import { runPythonInBrowser } from './browserRunner';
 import { getProblemById } from './problems';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+function getApiBaseUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (!envUrl) return 'http://127.0.0.1:8000/api';
+  let clean = envUrl.trim().replace(/\/+$/, '');
+  if (!clean.endsWith('/api') && !clean.includes('127.0.0.1:8000/api')) {
+    clean = `${clean}/api`;
+  }
+  return clean;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface BackendHealth {
   isAvailable: boolean;

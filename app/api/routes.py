@@ -15,7 +15,7 @@ from app.schemas.arena import (
 )
 from app.services.sandbox import evaluate_solution, run_python_code, run_java_code
 
-router = APIRouter(prefix="/api/arena", tags=["Coding Arena"])
+router = APIRouter(prefix="/arena", tags=["Coding Arena"])
 
 # In-memory + persistent JSON storage for submissions and solved tracking
 SUBMISSIONS_FILE = os.path.join(os.path.dirname(__file__), "..", "submissions.json")

@@ -5,7 +5,17 @@ import {
   UserProgressData 
 } from '../types/auth';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+function getApiBaseUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (!envUrl) return 'http://127.0.0.1:8000/api';
+  let clean = envUrl.trim().replace(/\/+$/, '');
+  if (!clean.endsWith('/api') && !clean.includes('127.0.0.1:8000/api')) {
+    clean = `${clean}/api`;
+  }
+  return clean;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 function authHeaders(token?: string | null): HeadersInit {
   const headers: HeadersInit = {
@@ -53,6 +63,10 @@ function isNetworkError(err: any): boolean {
   return (
     err.name === 'TypeError' ||
     msg.includes('failed to fetch') ||
+    msg.includes('not found') ||
+    msg.includes('404') ||
+    msg.includes('502') ||
+    msg.includes('503') ||
     msg.includes('network') ||
     msg.includes('connection refused') ||
     msg.includes('cannot reach')

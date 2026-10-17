@@ -29,6 +29,8 @@ __pycache__/
 *$py.class
 *.sqlite3
 *.db
+!app/algomotion.db
 .env
 .env.*
+
 

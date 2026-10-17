@@ -3,12 +3,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as arena_router
 from app.api.auth_routes import router as auth_router, user_router
+from app.database import init_db
 
 app = FastAPI(
     title="AlgoMotion Execution Engine, Auth & Coding Arena API",
     description="Real sandboxed code execution, student authentication, and progress tracking.",
     version="2.0.0"
 )
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 # Enable CORS for Vite frontend
 app.add_middleware(

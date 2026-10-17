@@ -183,11 +183,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </button>
 
             <button
+              onClick={() => onNavigate('arena')}
+              className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 hover:border-cyan-400 shadow-lg shadow-cyan-500/10 transition-all"
+            >
+              <Zap className="w-4 h-4 text-cyan-400" />
+              <span>Enter Coding Arena</span>
+            </button>
+
+            <button
               onClick={() => onNavigate('explorer')}
               className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 transition-all shadow-md"
             >
-              <Compass className="w-4 h-4 text-cyan-400" />
-              <span>Explore 16 Algorithms</span>
+              <Compass className="w-4 h-4 text-slate-400" />
+              <span>Explore Algorithms</span>
             </button>
           </motion.div>
 

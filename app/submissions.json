@@ -1,0 +1,13 @@
+[
+  {
+    "id": "sub-148e7e2e",
+    "problem_id": "rotate-array",
+    "problem_title": "Rotate Array by K Positions",
+    "language": "python",
+    "status": "Accepted",
+    "passed_test_cases": 5,
+    "total_test_cases": 5,
+    "execution_time_ms": 120.46,
+    "timestamp": "2026-10-17 10:33:18 UTC"
+  }
+]

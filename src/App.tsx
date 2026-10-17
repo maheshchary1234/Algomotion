@@ -7,6 +7,7 @@ import { ExplorerPage } from './pages/ExplorerPage';
 import { VisualizerPage } from './pages/VisualizerPage';
 import { PlaygroundPage } from './pages/PlaygroundPage';
 import { ComplexityPage } from './pages/ComplexityPage';
+import { ArenaPage } from './pages/ArenaPage';
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
@@ -19,6 +20,10 @@ export function App() {
     }
     setCurrentTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenVisualizerFromArena = (visualizerId: string) => {
+    handleNavigate('workspace', visualizerId);
   };
 
   return (
@@ -46,6 +51,10 @@ export function App() {
             initialAlgoId={selectedAlgoId}
             onNavigate={handleNavigate}
           />
+        )}
+
+        {currentTab === 'arena' && (
+          <ArenaPage onOpenVisualizer={handleOpenVisualizerFromArena} />
         )}
 
         {currentTab === 'playground' && (

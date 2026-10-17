@@ -87,7 +87,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
-            Visualizer Workspace
+            Workspace
+          </button>
+
+          <button
+            onClick={() => onNavigate('arena')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              currentTab === 'arena'
+                ? 'bg-cyan-600/15 text-cyan-400 border border-cyan-500/30 shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Coding Arena</span>
           </button>
 
           <button

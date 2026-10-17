@@ -12,7 +12,7 @@ export interface BackendHealth {
 export async function checkBackendHealth(): Promise<BackendHealth> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal });
     clearTimeout(timeoutId);
     if (res.ok) {

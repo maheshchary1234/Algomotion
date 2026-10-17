@@ -37,38 +37,15 @@ export const OutputConsole: React.FC<OutputConsoleProps> = ({
     );
   }
 
-  // If backend is disconnected
-  if (!isBackendConnected) {
-    return (
-      <div className="flex flex-col justify-center p-5 rounded-2xl bg-amber-950/20 border border-amber-800/60 text-xs gap-3">
-        <div className="flex items-center gap-2 text-amber-300 font-bold">
-          <ServerOff className="w-4 h-4 text-amber-400" />
-          <span>Execution Service Not Detected</span>
-        </div>
-        <p className="text-slate-300 leading-relaxed font-sans text-[11px]">
-          AlgoMotion strictly forbids simulating fake submissions. A genuine sandboxed execution service is required to safely evaluate Java and Python code with timeouts and memory limits.
-        </p>
-        <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-cyan-300 flex flex-col gap-1">
-          <span className="text-slate-400 text-[10px]">Start the FastAPI backend with:</span>
-          <code>python -m uvicorn app.main:app --port 8000</code>
-        </div>
-        {onRetryConnection && (
-          <button
-            onClick={onRetryConnection}
-            className="w-fit px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs transition-colors"
-          >
-            Check Connection
-          </button>
-        )}
-      </div>
-    );
-  }
-
   if (!result) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 rounded-2xl bg-[#090D16] border border-slate-800 text-slate-500 font-mono text-xs gap-2">
-        <Terminal className="w-6 h-6 text-slate-600" />
-        <span>Click "Run Code" or "Submit Solution" to see execution results.</span>
+      <div className="flex flex-col items-center justify-center h-full p-6 rounded-2xl bg-[#090D16] border border-slate-800 text-slate-400 font-mono text-xs gap-3 text-center">
+        <Terminal className="w-6 h-6 text-cyan-400" />
+        <span className="text-slate-200 font-semibold">Click "Run Code" or "Submit Solution" to test your code.</span>
+        <div className="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400">
+          <span className={`w-2 h-2 rounded-full ${isBackendConnected ? 'bg-emerald-400' : 'bg-cyan-400'} animate-pulse`}></span>
+          <span>{isBackendConnected ? 'FastAPI Cloud Sandbox Active' : 'WebAssembly Browser Sandbox Ready'}</span>
+        </div>
       </div>
     );
   }

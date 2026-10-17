@@ -1,4 +1,6 @@
 import { CodingProblem, ExecutionResponse, SubmissionRecord, LeaderboardUser } from '../types/arena';
+import { runPythonInBrowser } from './browserRunner';
+import { getProblemById } from './problems';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
@@ -56,28 +58,32 @@ export async function executeRunCode(
       }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText || 'Failed to execute code');
+    if (res.ok) {
+      return await res.json();
     }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('NetworkError')) {
-      return {
-        status: 'Internal Error',
-        total_test_cases: 0,
-        passed_test_cases: 0,
-        execution_time_ms: 0,
-        memory_mb: 0,
-        compile_error: null,
-        runtime_error: 'Execution Sandbox Offline.\n\nThe 16 algorithm visualizers work 100% in your browser without any server.\nTo run sandboxed Python/Java code:\n• Local: Run `uvicorn app.main:app --port 8000` in terminal\n• Cloud: Deploy backend to Render (free) and set VITE_API_BASE_URL on Vercel.',
-        test_case_results: [],
-        message: 'Sandbox Offline',
-      };
-    }
-    throw err;
+  } catch {
+    // Backend unavailable, fallback to browser sandbox below
   }
+
+  // Fallback to in-browser execution
+  if (language === 'python') {
+    const prob = getProblemById(problemId);
+    if (prob) {
+      return await runPythonInBrowser(prob, code, customInput);
+    }
+  }
+
+  return {
+    status: 'Internal Error',
+    total_test_cases: 0,
+    passed_test_cases: 0,
+    execution_time_ms: 0,
+    memory_mb: 0,
+    compile_error: null,
+    runtime_error: 'Java execution requires the backend server. Start local backend with `uvicorn app.main:app --port 8000` or switch language to Python to execute in your browser.',
+    test_case_results: [],
+    message: 'Backend Offline for Java',
+  };
 }
 
 export async function executeSubmitSolution(
@@ -102,28 +108,32 @@ export async function executeSubmitSolution(
       }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText || 'Failed to submit solution');
+    if (res.ok) {
+      return await res.json();
     }
-
-    return await res.json();
-  } catch (err: any) {
-    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('NetworkError')) {
-      return {
-        status: 'Internal Error',
-        total_test_cases: 0,
-        passed_test_cases: 0,
-        execution_time_ms: 0,
-        memory_mb: 0,
-        compile_error: null,
-        runtime_error: 'Execution Sandbox Offline.\n\nConnect the Python backend on port 8000 or deploy to Render to evaluate solutions.',
-        test_case_results: [],
-        message: 'Sandbox Offline',
-      };
-    }
-    throw err;
+  } catch {
+    // Backend unavailable, fallback to browser sandbox below
   }
+
+  // Fallback to in-browser execution
+  if (language === 'python') {
+    const prob = getProblemById(problemId);
+    if (prob) {
+      return await runPythonInBrowser(prob, code);
+    }
+  }
+
+  return {
+    status: 'Internal Error',
+    total_test_cases: 0,
+    passed_test_cases: 0,
+    execution_time_ms: 0,
+    memory_mb: 0,
+    compile_error: null,
+    runtime_error: 'Java execution requires the backend server. Start local backend with `uvicorn app.main:app --port 8000` or switch language to Python to execute in your browser.',
+    test_case_results: [],
+    message: 'Backend Offline for Java',
+  };
 }
 
 export async function fetchSubmissions(problemId?: string): Promise<SubmissionRecord[]> {
